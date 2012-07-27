@@ -12,6 +12,10 @@ class LockTest < Test::Unit::TestCase
     def self.perform
       raise "Woah woah woah, that wasn't supposed to happen"
     end
+
+    def self.lock_ttl
+      return 1
+    end
   end
 
   def setup
@@ -36,5 +40,12 @@ class LockTest < Test::Unit::TestCase
     3.times { Resque.enqueue(Job) }
 
     assert_equal 1, Resque.redis.llen('queue:lock_test')
+  end
+
+  def test_lock_ttl
+    2.times { Resque.enqueue(Job) }
+    sleep 2
+    Resque.enqueue(Job)
+    assert_equal 2, Resque.redis.llen('queue:lock_test')
   end
 end
