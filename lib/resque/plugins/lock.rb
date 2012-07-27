@@ -48,8 +48,23 @@ module Resque
         "lock:#{name}-#{args.to_s}"
       end
 
+      # Override in your job to control the lock key TTL. If `nil`
+      # it will not expire (which is the default behavior).
+      def lock_ttl(*args)
+        nil
+      end
+
       def before_enqueue_lock(*args)
-        Resque.redis.setnx(lock(*args), true)
+        lock_key = lock(*args)
+        lock_key_ttl = lock_ttl(*args)
+        if Resque.redis.setnx(lock_key, true)
+          # Set TTL if specified and enqueue job
+          Resque.redis.expire(lock_key, lock_key_ttl) unless lock_key_ttl.nil?
+          return true
+        else
+          # Do not enqueue job
+          return false
+        end
       end
 
       def around_perform_lock(*args)
